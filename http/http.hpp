@@ -18,7 +18,8 @@ struct Response {
   std::unordered_map<std::string, std::string> headers_;
   std::vector<char> content_;
 
-  Response() {}
+  Response() {
+  }
   Response(std::string line) {
     status_line_ = line;
     line = line.substr(line.find(" "));
@@ -66,7 +67,8 @@ struct Connection {
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr(host.c_str());
     server_addr.sin_port = htons(port);
-    if (connect(sock_, reinterpret_cast<struct sockaddr*>(&server_addr), sizeof(server_addr)) == -1) {
+    if (connect(sock_, reinterpret_cast<struct sockaddr*>(&server_addr),
+                sizeof(server_addr)) == -1) {
       std::stringstream ss;
       ss << "connect() failed. errno: " << errno << std::endl;
       throw std::runtime_error(ss.str());
@@ -103,7 +105,6 @@ struct Connection {
         throw std::runtime_error(ss.str());
       }
       tail_ = nread;
-
     }
     return res;
   }
@@ -114,12 +115,12 @@ struct Connection {
     while (true) {
       int buffered = tail_ - head_;
       if (buffered >= ntoread) {
-        res.insert(res.end(), &buffer_[head_], &buffer_[head_+ntoread]);
+        res.insert(res.end(), &buffer_[head_], &buffer_[head_ + ntoread]);
         head_ += ntoread;
         break;
       } else {
         // res += std::string(&buffer_[head_], buffered);
-        res.insert(res.end(), &buffer_[head_], &buffer_[head_+buffered]);
+        res.insert(res.end(), &buffer_[head_], &buffer_[head_ + buffered]);
         ntoread -= buffered;
         head_ = 0;
         tail_ = 0;
@@ -150,9 +151,10 @@ struct Connection {
       res.content_ = recvN(length);
     } else if (res.headers_.count("Transfer-Encoding") > 0) {
       if (res.headers_["Transfer-Encoding"] == "chunked") {
-        while(true) {
+        while (true) {
           int size = strtol(recvLine().c_str(), NULL, 16);
-          if (size == 0) break;
+          if (size == 0)
+            break;
           std::vector<char> chunk = recvN(size);
           res.content_.insert(res.content_.end(), chunk.begin(), chunk.end());
         }
@@ -218,9 +220,9 @@ struct Client {
     return c.recvResponse();
   }
 
-  template<typename F>
+  template <typename F>
   std::future<void> get(std::string url_str, F callback) {
-    return std::async(std::launch::async, [=]{
+    return std::async(std::launch::async, [=] {
       URL url(url_str);
       Connection c(url.host_, url.port_);
       c.sendRequest(buildReq("GET", url));
