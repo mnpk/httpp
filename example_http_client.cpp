@@ -10,12 +10,11 @@ int main(int argc, char** argv) {
   http::Client http;
 
   // GET
-  http::Response res = http.head(url);
+  http::Response res = http.get(url);
   std::cout << res;
 
   // async GET
-  // std::cout << ">> Async GET example" << std::endl;
-  // auto future = http.get(url, [](http::Response res) { std::cout << res; });
+  auto future = http.get(url, [](http::Response res) { std::cout << res; });
 
   return 0;
 }
