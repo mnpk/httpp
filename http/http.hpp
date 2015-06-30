@@ -11,6 +11,7 @@
 #include <future>
 
 namespace http {
+
 struct Response {
   std::string status_line_;
   int code_;
@@ -136,7 +137,7 @@ struct Connection {
     return res;
   }
 
-  Response recvResponse() {
+  Response recvHeader() {
     std::string line = recvLine();
     Response res(line);
     while (true) {
@@ -146,6 +147,10 @@ struct Connection {
       }
       res.setHeader(line);
     }
+    return res;
+  }
+
+  Response& recvContent(Response& res) {
     if (res.headers_.count("Content-Length") > 0) {
       int length = atoi(res.headers_["Content-Length"].c_str());
       res.content_ = recvN(length);
@@ -213,21 +218,42 @@ struct Client {
     return req.str();
   }
 
-  Response get(std::string url_str) {
+  Response request(std::string method, std::string url_str) {
     URL url(url_str);
     Connection c(url.host_, url.port_);
-    c.sendRequest(buildReq("GET", url));
-    return c.recvResponse();
+    c.sendRequest(buildReq(method, url));
+    Response res = c.recvHeader();
+    if (method != "HEAD") {
+      c.recvContent(res);
+    }
+    return res;
+  }
+
+  Response get(std::string url_str) {
+    return request("GET", url_str);
+  }
+
+  Response head(std::string url_str) {
+    return request("HEAD", url_str);
+  }
+
+  // Async
+  template <typename F>
+  std::future<void> request(std::string method, std::string url_str, F callback) {
+    return std::async(std::launch::async, [=] {
+      Response res = request(method, url_str);
+      callback(res);
+    });
   }
 
   template <typename F>
   std::future<void> get(std::string url_str, F callback) {
-    return std::async(std::launch::async, [=] {
-      URL url(url_str);
-      Connection c(url.host_, url.port_);
-      c.sendRequest(buildReq("GET", url));
-      callback(c.recvResponse());
-    });
+    return request("GET", url_str, callback);
+  }
+
+  template <typename F>
+  std::future<void> head(std::string url_str, F callback) {
+    return request("HEAD", url_str, callback);
   }
 };
 
