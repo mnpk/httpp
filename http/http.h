@@ -24,7 +24,7 @@ struct Response {
   }
   Response(std::string line) {
     status_line_ = line;
-    line = line.substr(line.find(" "));
+    line = line.substr(line.find(" ") + 1);
     code_ = atoi(line.substr(0, line.find(" ")).c_str());
     reason_ = line.substr(line.find(" "));
   }
