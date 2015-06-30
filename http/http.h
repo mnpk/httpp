@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <string.h>
+#include <netdb.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -66,7 +67,15 @@ struct Connection {
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(host.c_str());
+    if (inet_addr(host.c_str()) == INADDR_NONE) {
+      struct hostent *he = gethostbyname(host.c_str());
+      if (he == NULL) {
+        throw std::runtime_error("failed to resolve hostname");
+      }
+      server_addr.sin_addr.s_addr = *((long int*)*he->h_addr_list);
+    } else {
+      server_addr.sin_addr.s_addr = inet_addr(host.c_str());
+    }
     server_addr.sin_port = htons(port);
     if (connect(sock_, reinterpret_cast<struct sockaddr*>(&server_addr),
                 sizeof(server_addr)) == -1) {
