@@ -10,11 +10,15 @@ int main(int argc, char** argv) {
   http::Client http;
 
   // GET
-  http::Response res = http.get(url);
+  http::Response res = http.get(url, {{"Range", "bytes=8-"}});
   std::cout << res;
 
   // async GET
   auto future = http.get(url, [](http::Response res) { std::cout << res; });
+
+  // GET with custom headers
+  http::Response res = http.get(url, {{"Range", "bytes=8-"}});
+  std::cout << res;
 
   return 0;
 }

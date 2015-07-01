@@ -12,7 +12,6 @@
 #include <future>
 
 namespace http {
-
 struct Response {
   std::string status_line_;
   int code_;
@@ -68,7 +67,7 @@ struct Connection {
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     if (inet_addr(host.c_str()) == INADDR_NONE) {
-      struct hostent *he = gethostbyname(host.c_str());
+      struct hostent* he = gethostbyname(host.c_str());
       if (he == NULL) {
         throw std::runtime_error("failed to resolve hostname");
       }
@@ -217,20 +216,35 @@ struct URL {
 };
 
 struct Client {
-  std::string buildReq(const std::string& method, URL url) {
+  std::string buildReq(const std::string& method, URL url,
+                       std::unordered_map<std::string, std::string> headers) {
     std::stringstream req;
     req << method << " " << url.path_ << " HTTP/1.1\r\n";
-    req << "Accept: */*\r\n";
-    req << "Connection: keep-alive\r\n";
-    req << "Host: " << url.host_ << "\r\n";
-    req << "User-Agent: WFS/0.1.0\r\n\r\n";
+
+    std::unordered_map<std::string, std::string> h{
+        {"Accept", "*/*"},
+        {"Connection", "keep-alive"},
+        {"Host", url.host_},
+        {"User-Agent", "httpp/0.1.0"}};
+    for (auto field : headers) {
+      h.emplace(field.first, field.second);
+    }
+
+    for (auto field : h) {
+      req << field.first << ": " << field.second << "\r\n";
+    }
+    req << "\r\n";
+
+    std::cout << req.str();
     return req.str();
   }
 
-  Response request(std::string method, std::string url_str) {
+  Response request(std::string method, std::string url_str,
+                   std::unordered_map<std::string, std::string> headers = {
+                       {}}) {
     URL url(url_str);
     Connection c(url.host_, url.port_);
-    c.sendRequest(buildReq(method, url));
+    c.sendRequest(buildReq(method, url, headers));
     Response res = c.recvHeader();
     if (method != "HEAD") {
       c.recvContent(res);
@@ -238,17 +252,20 @@ struct Client {
     return res;
   }
 
-  Response get(std::string url_str) {
-    return request("GET", url_str);
+  Response get(std::string url_str,
+               std::unordered_map<std::string, std::string> headers = {{}}) {
+    return request("GET", url_str, headers);
   }
 
-  Response head(std::string url_str) {
-    return request("HEAD", url_str);
+  Response head(std::string url_str,
+                std::unordered_map<std::string, std::string> headers = {{}}) {
+    return request("HEAD", url_str, headers);
   }
 
   // Async
   template <typename F>
-  std::future<void> request(std::string method, std::string url_str, F callback) {
+  std::future<void> request(std::string method, std::string url_str,
+                            F callback) {
     return std::async(std::launch::async, [=] {
       Response res = request(method, url_str);
       callback(res);
@@ -263,6 +280,31 @@ struct Client {
   template <typename F>
   std::future<void> head(std::string url_str, F callback) {
     return request("HEAD", url_str, callback);
+  }
+
+  // Async with headers
+  template <typename F>
+  std::future<void> request(
+      std::string method, std::string url_str,
+      std::unordered_map<std::string, std::string> headers, F callback) {
+    return std::async(std::launch::async, [=] {
+      Response res = request(method, url_str, headers);
+      callback(res);
+    });
+  }
+
+  template <typename F>
+  std::future<void> get(std::string url_str,
+                        std::unordered_map<std::string, std::string> headers,
+                        F callback) {
+    return request("GET", url_str, headers, callback);
+  }
+
+  template <typename F>
+  std::future<void> head(std::string url_str,
+                         std::unordered_map<std::string, std::string> headers,
+                         F callback) {
+    return request("HEAD", url_str, headers, callback);
   }
 };
 
