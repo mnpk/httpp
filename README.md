@@ -1,4 +1,4 @@
-# HTTP++
+# HTTP+
 
 Simple http client in C++11.
 
