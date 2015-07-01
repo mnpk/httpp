@@ -160,10 +160,7 @@ struct Connection {
   }
 
   Response& recvContent(Response& res) {
-    if (res.headers_.count("Content-Length") > 0) {
-      int length = atoi(res.headers_["Content-Length"].c_str());
-      res.content_ = recvN(length);
-    } else if (res.headers_.count("Transfer-Encoding") > 0) {
+    if (res.headers_.count("Transfer-Encoding") > 0) {
       if (res.headers_["Transfer-Encoding"] == "chunked") {
         while (true) {
           int size = strtol(recvLine().c_str(), NULL, 16);
@@ -173,6 +170,9 @@ struct Connection {
           res.content_.insert(res.content_.end(), chunk.begin(), chunk.end());
         }
       }
+    } else if (res.headers_.count("Content-Length") > 0) {
+      int length = atoi(res.headers_["Content-Length"].c_str());
+      res.content_ = recvN(length);
     }
     return res;
   }
